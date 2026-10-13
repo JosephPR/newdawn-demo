@@ -1,0 +1,29 @@
+# Version control
+.git
+.gitignore
+
+# Python
+.venv
+__pycache__
+*.pyc
+*.pyo
+
+# Node (built in Docker)
+frontend/node_modules
+frontend/dist
+
+# Data & logs (created at runtime)
+data/
+*.log
+
+# IDE & OS
+.vscode
+.idea
+.DS_Store
+
+# Secrets
+.env
+.env.*
+
+# Docs
+*.md
