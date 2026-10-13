@@ -10,6 +10,9 @@
   color: var(--text-primary, #ffffff);
   position: relative;
   font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-variant-numeric: lining-nums proportional-nums;
+  -webkit-font-feature-settings: "lnum" 1, "onum" 0;
+  font-feature-settings: "lnum" 1, "onum" 0;
   overflow: visible;
 }
 

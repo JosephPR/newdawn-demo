@@ -259,6 +259,19 @@ function AuthenticatedApp() {
     }
   };
 
+  // Helper to format model identifier into clean display label
+  const formatModelName = (model?: string | null) => {
+    if (!model) return '';
+    const clean = model.split('/')[1] || model;
+    if (clean.includes('gemini-3.1-pro')) return 'Gemini Pro';
+    if (clean.includes('gemini-3.8-flash')) return 'Gemini Flash';
+    if (clean.includes('gpt-4o')) return 'GPT-4o';
+    if (clean.includes('claude-3-7')) return 'Claude 3.7';
+    if (clean.includes('claude-3-5')) return 'Claude 3.5';
+    if (clean.includes('deepseek')) return 'DeepSeek';
+    return clean.replace('-preview', '').replace('-latest', '');
+  };
+
   return (
     <div className="app-container">
       {/* Animated Background */}
@@ -309,7 +322,7 @@ function AuthenticatedApp() {
                           {s.preview || 'New conversation'}
                         </span>
                         <span className="session-meta">
-                          {s.model ? `${s.model.split('/')[1] || s.model} · ` : ''}
+                          {s.model ? `${formatModelName(s.model)} · ` : ''}
                           {s.message_count > 0 ? `${s.message_count} msgs` : 'Empty'}
                           {s.last_update ? ` · ${formatRelativeTime(s.last_update)}` : ''}
                         </span>
@@ -415,7 +428,7 @@ function AuthenticatedApp() {
 
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexShrink: 0 }}>
             {/* Collapsible KPI Dropdown Container */}
             <div ref={kpiDropdownRef} style={{ position: 'relative' }}>
               <button 
@@ -425,8 +438,8 @@ function AuthenticatedApp() {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.5rem 1rem',
+                  gap: '0.45rem',
+                  padding: '0.45rem 0.8rem',
                   borderRadius: '8px',
                   border: '1px solid var(--border-color)',
                   background: showKPIs ? 'rgba(249, 115, 22, 0.15)' : 'rgba(255, 255, 255, 0.05)',
@@ -501,8 +514,8 @@ function AuthenticatedApp() {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.5rem 1rem',
+                gap: '0.45rem',
+                padding: '0.45rem 0.8rem',
                 borderRadius: '8px',
                 border: '1px solid var(--border-color)',
                 background: showAuditTrail ? 'rgba(236, 72, 153, 0.15)' : 'rgba(255, 255, 255, 0.05)',
@@ -515,7 +528,7 @@ function AuthenticatedApp() {
               }}
             >
               <Database size={14} />
-              <span>{showAuditTrail ? 'Hide Audit Log' : 'Show Audit Log'}</span>
+              <span>{showAuditTrail ? 'Hide Logs' : 'Audit Log'}</span>
             </button>
             
             <button 
@@ -525,8 +538,8 @@ function AuthenticatedApp() {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.5rem 1rem',
+                gap: '0.45rem',
+                padding: '0.45rem 0.8rem',
                 borderRadius: '8px',
                 border: '1px solid var(--border-color)',
                 background: showSettings ? 'rgba(249, 115, 22, 0.15)' : 'rgba(255, 255, 255, 0.05)',
@@ -549,8 +562,8 @@ function AuthenticatedApp() {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.5rem 1rem',
+                gap: '0.45rem',
+                padding: '0.45rem 0.8rem',
                 borderRadius: '8px',
                 border: '1px solid var(--border-color)',
                 background: showLandingView ? 'rgba(249, 115, 22, 0.2)' : 'rgba(255, 255, 255, 0.05)',
@@ -566,9 +579,9 @@ function AuthenticatedApp() {
               <span>Showcase</span>
             </button>
 
-            <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e', flexShrink: 0 }}></span>
-              System Online
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.45rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#22c55e', flexShrink: 0 }}></span>
+              Online
             </div>
           </div>
         </header>
