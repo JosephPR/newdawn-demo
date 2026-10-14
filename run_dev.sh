@@ -3,7 +3,7 @@
 set -e
 
 echo "================================================="
-echo " Starting Multi-Agent Starter System"
+echo " Starting NewDawn Agency OS"
 echo "================================================="
 
 # Pre-flight check: Root .env file

@@ -9,7 +9,12 @@ import { useState } from 'react';
 import { Box, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-export function LoginPage() {
+interface LoginPageProps {
+  onBackToLanding?: () => void;
+  onSignInSuccess?: () => void;
+}
+
+export function LoginPage({ onBackToLanding, onSignInSuccess }: LoginPageProps = {}) {
   const { signIn } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState('');
@@ -19,6 +24,9 @@ export function LoginPage() {
     setError('');
     try {
       await signIn();
+      if (onSignInSuccess) {
+        onSignInSuccess();
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Sign-in failed';
       // Don't show error for user-cancelled popups
@@ -44,8 +52,8 @@ export function LoginPage() {
           <div className="login-logo-icon">
             <Box size={32} />
           </div>
-          <h1>Multi-Agent Starter</h1>
-          <p className="login-subtitle">Multi-Agent AI Platform</p>
+          <h1>NewDawn Agency OS</h1>
+          <p className="login-subtitle">Enterprise Autonomous Multi-Agent Platform</p>
         </div>
 
         <div className="login-divider"></div>
@@ -79,7 +87,27 @@ export function LoginPage() {
           )}
         </div>
 
-        <div className="login-footer">
+        <div className="login-footer" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
+          {onBackToLanding && (
+            <button
+              type="button"
+              onClick={onBackToLanding}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#f97316',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                transition: 'opacity 0.2s',
+              }}
+            >
+              ← Back to Showcase &amp; Architecture
+            </button>
+          )}
           <p>Powered by Firebase Auth · Google Cloud</p>
         </div>
       </div>

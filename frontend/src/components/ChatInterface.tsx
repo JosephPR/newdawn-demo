@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Bot, User, Loader2, Database, Users, Sparkles } from 'lucide-react';
+import { Send, Bot, User, Loader2, Database, Search, Globe, ShieldCheck, ArrowRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -18,10 +18,45 @@ interface ChatInterfaceProps {
   onMessageSent?: () => void;
 }
 
+const WELCOME_PROMPT_MESSAGE: Message = {
+  id: 'welcome-agent-intro',
+  role: 'agent',
+  content: `### Welcome to the NewDawn Multi-Agent Demo Workspace! 👋
+
+Here is a quick guide on how this platform operates, what it can do, and how to set it up for your organization:
+
+---
+
+### 1. 📖 How to Use the App
+* **Natural Language Goals:** Enter any complex objective, market query, or research topic into the prompt input below.
+* **Supervised Autonomous Routing:** The **Director Agent** analyzes your objective and coordinates specialized sub-agents behind the scenes.
+* **Live Observability:** Watch real-time execution pills update as agents perform web queries, scrape URLs, and synthesize data.
+* **Human-in-the-Loop Safety:** For sensitive or high-impact actions, interactive safety approval gates will appear in this thread for your direct review.
+
+---
+
+### 2. ⚡ What It Can Do
+* **Google Live Search:** Our Search Specialist sub-agent executes real-time web searches to gather current news, filings, and technical documentation.
+* **Autonomous Web Scraping:** Point the agency to any target URL to read, digest, and extract structured intelligence directly into context.
+* **Multi-Agent Orchestration:** Real-time reasoning and tool chaining built on the Google Agent Development Kit (ADK) architecture.
+* **Deterministic Guardrails:** Tool validation prevents runaway actions, hallucinated endpoints, or unvetted external modifications.
+
+---
+
+### 3. 🛠️ How to Set It Up for Your Enterprise
+* **Connect Proprietary Data:** Link your private databases (PostgreSQL, BigQuery, Snowflake) or internal APIs via **Model Context Protocol (MCP)**.
+* **Tailored Domain Personas:** Configure bespoke sub-agents tuned with your internal SOPs, brand voice, and compliance policies.
+* **Model Agnostic Freedom:** Seamlessly switch runtimes between Google Gemini 3.1 Pro / 3.8 Flash, Claude Sonnet 5.5, OpenAI GPT-6 Astra, or private local models via Ollama.
+
+---
+
+💡 **Try one of the live starter prompts below, or type your own question to see the agency in action!**`,
+};
+
 export function ChatInterface({ sessionId, selectedModel, onMessageSent }: ChatInterfaceProps) {
   const { getIdToken } = useAuth();
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([WELCOME_PROMPT_MESSAGE]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -73,24 +108,28 @@ export function ChatInterface({ sessionId, selectedModel, onMessageSent }: ChatI
     let cancelled = false;
 
     const loadHistory = async () => {
-      setMessages([]);
+      setMessages([WELCOME_PROMPT_MESSAGE]);
       setIsLoadingHistory(true);
       try {
         const headers = await authHeaders();
         const res = await fetch(`${API_BASE}/sessions/${sessionId}/history`, { headers });
         if (!res.ok) {
-          // Session might not exist yet – that's fine, start fresh
+          // Session might not exist yet – keep welcome message
           return;
         }
         const data: { role: string; content: string }[] = await res.json();
         if (cancelled) return;
 
-        const loaded: Message[] = data.map((m, i) => ({
-          id: `hist-${i}`,
-          role: m.role === 'user' ? 'user' : 'agent',
-          content: m.content,
-        }));
-        setMessages(loaded);
+        if (data.length === 0) {
+          setMessages([WELCOME_PROMPT_MESSAGE]);
+        } else {
+          const loaded: Message[] = data.map((m, i) => ({
+            id: `hist-${i}`,
+            role: m.role === 'user' ? 'user' : 'agent',
+            content: m.content,
+          }));
+          setMessages(loaded);
+        }
       } catch (err) {
         console.error('Failed to load session history:', err);
       } finally {
@@ -137,7 +176,16 @@ export function ChatInterface({ sessionId, selectedModel, onMessageSent }: ChatI
       });
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        let errDetail = 'Network response was not ok';
+        try {
+          const errData = await response.json();
+          if (errData && errData.detail) {
+            errDetail = errData.detail;
+          }
+        } catch {
+          // Response body was not JSON or already streamed
+        }
+        throw new Error(errDetail);
       }
 
       const reader = response.body?.getReader();
@@ -193,15 +241,35 @@ export function ChatInterface({ sessionId, selectedModel, onMessageSent }: ChatI
 
       // Notify parent so session list can refresh previews
       onMessageSent?.();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message:', error);
       if (currentSessionRef.current === sessionId) {
-        const errorMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'agent',
-          content: 'Sorry, I encountered an error communicating with the server. Please ensure the backend is running.',
-        };
-        setMessages((prev) => [...prev, errorMessage]);
+        const rawMessage = error?.message || '';
+        const isQuotaOrLimit = rawMessage.includes('Demo quota reached') || rawMessage.includes('Rate limit exceeded');
+        const displayContent = isQuotaOrLimit
+          ? rawMessage
+          : (rawMessage && rawMessage !== 'Network response was not ok'
+              ? `Error: ${rawMessage}`
+              : 'Sorry, I encountered an error communicating with the server. Please ensure the backend is running.');
+
+        setMessages((prev) => {
+          const placeholderExists = prev.some((m) => m.id === agentMessageId);
+          if (placeholderExists) {
+            return prev.map((m) =>
+              m.id === agentMessageId
+                ? { ...m, content: m.content ? `${m.content}\n\n⚠️ ${displayContent}` : `⚠️ ${displayContent}` }
+                : m
+            );
+          }
+          return [
+            ...prev,
+            {
+              id: (Date.now() + 1).toString(),
+              role: 'agent',
+              content: `⚠️ ${displayContent}`,
+            },
+          ];
+        });
       }
     } finally {
       setIsLoading(false);
@@ -292,51 +360,69 @@ export function ChatInterface({ sessionId, selectedModel, onMessageSent }: ChatI
             <Loader2 size={24} className="spin-icon" />
             <span>Loading conversation…</span>
           </div>
-        ) : messages.length === 0 ? (
-          <div className="hero-section">
-            <div className="hero-badge">
-              <Sparkles size={16} /> Multi-Agent Assistant
-            </div>
-            <h1 className="hero-title">How can I help you today?</h1>
-            <p className="hero-subtitle">I'm your AI orchestrator, ready to coordinate tasks and assist with your workflow.</p>
-            
-            <div className="tools-grid">
-              <div className="tool-card" onClick={() => submitPrompt("What capabilities and tools are currently available?")} style={{cursor: "pointer"}}>
-                <div className="tool-icon-wrapper prop-icon">
-                  <Database size={24} />
-                </div>
-                <div className="tool-info">
-                  <h3>Explore Capabilities</h3>
-                  <p>Discover active tools, registered agents, and system integrations.</p>
-                </div>
-              </div>
-              
-              <div className="tool-card" onClick={() => submitPrompt("Help me coordinate a new task workflow.")} style={{cursor: "pointer"}}>
-                <div className="tool-icon-wrapper user-icon">
-                  <Users size={24} />
-                </div>
-                <div className="tool-info">
-                  <h3>Start a Workflow</h3>
-                  <p>Delegate multi-step tasks across specialized agents and external services.</p>
-                </div>
-              </div>
-            </div>
-          </div>
         ) : (
-          messages.filter(m => !(m.role === 'agent' && !m.content)).map((message) => (
-            <div key={message.id} className={`message-wrapper ${message.role}`}>
-              <div className="message-sender" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                {message.role === 'user' ? (
-                  <>User <User size={12} /></>
-                ) : (
-                  <><Bot size={12} /> Agent</>
-                )}
+          <>
+            {messages.filter(m => !(m.role === 'agent' && !m.content)).map((message) => (
+              <div key={message.id} className={`message-wrapper ${message.role}`}>
+                <div className="message-sender" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                  {message.role === 'user' ? (
+                    <>User <User size={12} /></>
+                  ) : (
+                    <><Bot size={12} /> Director Agent</>
+                  )}
+                </div>
+                <div className="message-content markdown-body">
+                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                </div>
               </div>
-              <div className="message-content markdown-body">
-                <ReactMarkdown>{message.content}</ReactMarkdown>
+            ))}
+
+            {/* Quick Action Starter Prompts (shown before the user sends their first message) */}
+            {!messages.some(m => m.role === 'user') && (
+              <div className="starter-prompts-section" style={{ marginTop: '0.75rem', marginBottom: '0.5rem' }}>
+                <div className="starter-prompts-label">
+                  <span>Try one of these live starter prompts:</span>
+                </div>
+                <div className="starter-prompts-grid">
+                  <button 
+                    className="starter-chip"
+                    onClick={() => submitPrompt("Research recent developments in autonomous multi-agent AI frameworks and summarize key findings with sources.")}
+                  >
+                    <Search size={15} />
+                    <span>Research autonomous multi-agent frameworks</span>
+                    <ArrowRight size={14} className="chip-arrow" />
+                  </button>
+
+                  <button 
+                    className="starter-chip"
+                    onClick={() => submitPrompt("Scrape and summarize the top stories from https://news.ycombinator.com")}
+                  >
+                    <Globe size={15} />
+                    <span>Scrape and summarize Hacker News top stories</span>
+                    <ArrowRight size={14} className="chip-arrow" />
+                  </button>
+
+                  <button 
+                    className="starter-chip"
+                    onClick={() => submitPrompt("Explain how Human-in-the-Loop safety approval gates prevent runaway actions in enterprise agent deployments.")}
+                  >
+                    <ShieldCheck size={15} />
+                    <span>How Human-in-the-Loop approval gates work</span>
+                    <ArrowRight size={14} className="chip-arrow" />
+                  </button>
+
+                  <button 
+                    className="starter-chip"
+                    onClick={() => submitPrompt("How do we configure custom sub-agent personas and connect proprietary databases via MCP for our company?")}
+                  >
+                    <Database size={15} />
+                    <span>How to deploy custom sub-agents for enterprise</span>
+                    <ArrowRight size={14} className="chip-arrow" />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))
+            )}
+          </>
         )}
         
         {isLoading && (
@@ -403,7 +489,7 @@ export function ChatInterface({ sessionId, selectedModel, onMessageSent }: ChatI
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type your message here... (Shift+Enter for new line)"
+            placeholder="Type your message, ask how to deploy for enterprise, or pick a starter prompt above..."
             rows={1}
             disabled={isLoading}
           />

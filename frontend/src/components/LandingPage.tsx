@@ -17,7 +17,6 @@ import {
   ArrowRight, 
   CheckCircle2, 
   Lock, 
-  Mail, 
   Calendar, 
   X, 
   Loader2, 
@@ -31,7 +30,8 @@ import {
   Cpu,
   RotateCcw,
   Check,
-  AlertTriangle
+  AlertTriangle,
+  Send
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import './LandingPage.css';
@@ -39,10 +39,15 @@ import './LandingPage.css';
 interface LandingPageProps {
   onSignInSuccess?: () => void;
   onBackToWorkspace?: () => void;
+  onNavigateToWorkspace?: () => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onBackToWorkspace }) => {
-  const { signIn } = useAuth();
+export const LandingPage: React.FC<LandingPageProps> = ({ 
+  onBackToWorkspace, 
+  onNavigateToWorkspace, 
+  onSignInSuccess 
+}) => {
+  const { user, signIn } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [authError, setAuthError] = useState('');
   const [showConsultModal, setShowConsultModal] = useState(false);
@@ -51,15 +56,85 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onBackToWorkspace }) =
   const [govTab, setGovTab] = useState<'hitl' | 'audit' | 'security'>('hitl');
   const [hitlActionStatus, setHitlActionStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
 
+  // Consultation Scoping Intake Form States
+  const [formName, setFormName] = useState('');
+  const [formEmail, setFormEmail] = useState('');
+  const [formCompany, setFormCompany] = useState('');
+  const [formIndustry, setFormIndustry] = useState<string>(selectedIndustry);
+  const [formScope, setFormScope] = useState('');
+  const [isSubmittingForm, setIsSubmittingForm] = useState(false);
+  const [formSubmitted, setFormSubmitted] = useState(false);
+
+  // Sync form default industry when showcase tab changes
+  useEffect(() => {
+    setFormIndustry(selectedIndustry);
+  }, [selectedIndustry]);
+
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
   }, []);
+
+  const handleConsultSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formEmail.trim() || !formName.trim()) return;
+    setIsSubmittingForm(true);
+
+    try {
+      const payload = {
+        name: formName.trim(),
+        email: formEmail.trim(),
+        company: formCompany.trim(),
+        industry: formIndustry,
+        scope: formScope.trim(),
+        timestamp: new Date().toISOString()
+      };
+
+      // Store in client localStorage
+      const existing = JSON.parse(localStorage.getItem('scoping_requests') || '[]');
+      existing.push(payload);
+      localStorage.setItem('scoping_requests', JSON.stringify(existing));
+
+      // Post to backend autonomous intelligence pipeline
+      const apiBase = import.meta.env.VITE_API_BASE || '';
+      await fetch(`${apiBase}/api/scoping-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(() => {
+        // Safe fallback for demo mode
+      });
+
+      // Smooth realistic submission animation
+      await new Promise(r => setTimeout(r, 600));
+      setFormSubmitted(true);
+    } finally {
+      setIsSubmittingForm(false);
+    }
+  };
+
+  const resetConsultModal = () => {
+    setShowConsultModal(false);
+    setTimeout(() => {
+      setFormSubmitted(false);
+      setFormName('');
+      setFormEmail('');
+      setFormCompany('');
+      setFormScope('');
+    }, 250);
+  };
 
   const handleSignIn = async () => {
     setIsSigningIn(true);
     setAuthError('');
     try {
       await signIn();
+      if (onSignInSuccess) {
+        onSignInSuccess();
+      } else if (onNavigateToWorkspace) {
+        onNavigateToWorkspace();
+      } else if (onBackToWorkspace) {
+        onBackToWorkspace();
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Sign-in failed';
       if (!message.includes('popup-closed-by-user')) {
@@ -107,39 +182,39 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onBackToWorkspace }) =
           </nav>
 
           <div className="nav-actions">
-            {onBackToWorkspace ? (
+            <button 
+              className="btn-secondary-nav"
+              onClick={() => setShowConsultModal(true)}
+            >
+              Book Scoping Call
+            </button>
+
+            {user || onBackToWorkspace ? (
               <button 
                 className="btn-primary-nav"
-                onClick={onBackToWorkspace}
+                onClick={onNavigateToWorkspace || onBackToWorkspace}
               >
-                <span>✕ Return to Workspace</span>
+                <span>Open Workspace</span>
+                <ArrowRight size={16} />
               </button>
             ) : (
-              <>
-                <button 
-                  className="btn-secondary-nav"
-                  onClick={() => setShowConsultModal(true)}
-                >
-                  Book Scoping Call
-                </button>
-                <button 
-                  className="btn-primary-nav"
-                  onClick={handleSignIn}
-                  disabled={isSigningIn}
-                >
-                  {isSigningIn ? (
-                    <>
-                      <Loader2 size={16} className="spin-icon" />
-                      <span>Connecting…</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Launch Live Demo</span>
-                      <ArrowRight size={16} />
-                    </>
-                  )}
-                </button>
-              </>
+              <button 
+                className="btn-primary-nav"
+                onClick={handleSignIn}
+                disabled={isSigningIn}
+              >
+                {isSigningIn ? (
+                  <>
+                    <Loader2 size={16} className="spin-icon" />
+                    <span>Connecting…</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Launch Live Demo</span>
+                    <ArrowRight size={16} />
+                  </>
+                )}
+              </button>
             )}
           </div>
         </div>
@@ -166,7 +241,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onBackToWorkspace }) =
         <div className="hero-cta-group">
           <button 
             className="hero-btn-primary" 
-            onClick={onBackToWorkspace || handleSignIn}
+            onClick={(user || onBackToWorkspace) ? (onNavigateToWorkspace || onBackToWorkspace) : handleSignIn}
             disabled={isSigningIn}
           >
             {isSigningIn ? (
@@ -174,9 +249,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onBackToWorkspace }) =
                 <Loader2 size={20} className="spin-icon" />
                 <span>Signing In…</span>
               </>
-            ) : onBackToWorkspace ? (
+            ) : (user || onBackToWorkspace) ? (
               <>
-                <span>Return to Active Workspace</span>
+                <span>Open Active Workspace</span>
                 <ArrowRight size={18} />
               </>
             ) : (
@@ -978,13 +1053,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onBackToWorkspace }) =
           <div className="cta-banner-actions">
             <button 
               className="cta-btn-primary" 
-              onClick={handleSignIn}
+              onClick={(user || onBackToWorkspace) ? (onNavigateToWorkspace || onBackToWorkspace) : handleSignIn}
               disabled={isSigningIn}
             >
               {isSigningIn ? (
                 <>
                   <Loader2 size={20} className="spin-icon" />
                   <span>Connecting…</span>
+                </>
+              ) : (user || onBackToWorkspace) ? (
+                <>
+                  <span>Open Interactive Workspace</span>
+                  <ArrowRight size={18} />
                 </>
               ) : (
                 <>
@@ -1013,7 +1093,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onBackToWorkspace }) =
               <span className="brand-title">NEW DAWN</span>
             </div>
             <p className="footer-copyright">
-              Enterprise Multi-Agent Starter Architecture · Powered by Google ADK & Gemini
+              NewDawn Agency OS · Enterprise Multi-Agent Architecture Powered by Google ADK & Gemini
             </p>
           </div>
         </div>
@@ -1021,46 +1101,150 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onBackToWorkspace }) =
 
       {/* Consultation Modal */}
       {showConsultModal && (
-        <div className="modal-backdrop" onClick={() => setShowConsultModal(false)}>
+        <div className="modal-backdrop" onClick={resetConsultModal}>
           <div className="consult-modal" onClick={e => e.stopPropagation()}>
             <div className="consult-modal-header">
               <div className="consult-modal-title">
                 <Calendar size={22} style={{ color: '#f97316' }} />
-                <h3>Book a Technical Scoping Call</h3>
+                <div>
+                  <h3>Schedule Technical Scoping Call</h3>
+                  <span className="modal-subtitle">30-Minute Architecture &amp; Custom Pilot Review</span>
+                </div>
               </div>
-              <button className="close-btn" onClick={() => setShowConsultModal(false)}>
+              <button className="close-btn" onClick={resetConsultModal} title="Close">
                 <X size={20} />
               </button>
             </div>
-            <div className="consult-modal-body">
-              <p>
-                Interested in deploying custom autonomous AI agent workforces tailored to your company's proprietary data and workflows?
-              </p>
-              <div className="consult-details">
-                <div className="detail-item">
-                  <CheckCircle2 size={18} />
-                  <span>Custom sub-agent architecture design for your industry</span>
-                </div>
-                <div className="detail-item">
-                  <CheckCircle2 size={18} />
-                  <span>Private model deployment (Gemini, Claude, or local Ollama)</span>
-                </div>
-                <div className="detail-item">
-                  <CheckCircle2 size={18} />
-                  <span>SOC2-compliant audit trails & Human-in-the-Loop workflows</span>
-                </div>
-              </div>
 
-              <div className="consult-action-box">
-                <p>Reach out directly to schedule a 30-minute scoping session:</p>
-                <a 
-                  href="mailto:contact@youragency.com?subject=Inquiry%20about%20Custom%20Agentic%20AI%20Deployment" 
-                  className="consult-email-btn"
-                >
-                  <Mail size={18} />
-                  <span>contact@youragency.com</span>
-                </a>
-              </div>
+            <div className="consult-modal-body">
+              {formSubmitted ? (
+                <div className="consult-success-view">
+                  <div className="success-icon-badge">
+                    <CheckCircle2 size={36} />
+                  </div>
+                  <h3>Request Successfully Received!</h3>
+                  <p>
+                    Thank you, <strong>{formName}</strong>. Our engineering team has received your scoping details for <strong>{formCompany || 'your team'}</strong>.
+                  </p>
+                  <p className="success-sub">
+                    We will review your workflow parameters and reach out at <strong>{formEmail}</strong> within 24 business hours with custom topology options and calendar availability.
+                  </p>
+
+                  <div className="success-actions">
+                    <button className="consult-close-confirm-btn" onClick={resetConsultModal}>
+                      <span>Back to Showcase</span>
+                      <ArrowRight size={16} />
+                    </button>
+                    {import.meta.env.VITE_CALENDLY_URL && (
+                      <a 
+                        href={import.meta.env.VITE_CALENDLY_URL} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="consult-calendar-direct-btn"
+                      >
+                        <Calendar size={16} />
+                        <span>Book Instantly on Calendar</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <form className="consult-form" onSubmit={handleConsultSubmit}>
+                  <p className="form-intro">
+                    Tell us about your team's workflows. We'll assemble a tailored multi-agent topology demonstration and private sandbox.
+                  </p>
+
+                  <div className="form-row-2col">
+                    <div className="form-group">
+                      <label htmlFor="scoping-name">Full Name <span className="req">*</span></label>
+                      <input
+                        id="scoping-name"
+                        type="text"
+                        placeholder="e.g. Alex Morgan"
+                        required
+                        value={formName}
+                        onChange={e => setFormName(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="scoping-email">Work Email <span className="req">*</span></label>
+                      <input
+                        id="scoping-email"
+                        type="email"
+                        placeholder="alex@enterprise.com"
+                        required
+                        value={formEmail}
+                        onChange={e => setFormEmail(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-row-2col">
+                    <div className="form-group">
+                      <label htmlFor="scoping-company">Company / Organization</label>
+                      <input
+                        id="scoping-company"
+                        type="text"
+                        placeholder="e.g. Acme Capital"
+                        value={formCompany}
+                        onChange={e => setFormCompany(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="scoping-industry">Industry Domain</label>
+                      <select
+                        id="scoping-industry"
+                        value={formIndustry}
+                        onChange={e => setFormIndustry(e.target.value)}
+                      >
+                        <option value="finance">Finance &amp; Private Equity</option>
+                        <option value="legal">Legal &amp; Regulatory Compliance</option>
+                        <option value="realestate">Real Estate &amp; CRE</option>
+                        <option value="ecommerce">E-Commerce &amp; Retail</option>
+                        <option value="saas">B2B SaaS &amp; Enterprise Tech</option>
+                        <option value="other">Other High-Value Domain</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="scoping-scope">
+                      Workflow or Tasks to Automate <span className="opt">(Optional)</span>
+                    </label>
+                    <textarea
+                      id="scoping-scope"
+                      rows={3}
+                      placeholder="e.g. Automated regulatory filing ingestion, CRM update gates, and custom multi-agent routing..."
+                      value={formScope}
+                      onChange={e => setFormScope(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-submit-footer">
+                    <button 
+                      type="submit" 
+                      className="consult-submit-btn" 
+                      disabled={isSubmittingForm || !formName || !formEmail}
+                    >
+                      {isSubmittingForm ? (
+                        <>
+                          <Loader2 size={18} className="spin-icon" />
+                          <span>Preparing Request…</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send size={16} />
+                          <span>Request Technical Consultation</span>
+                        </>
+                      )}
+                    </button>
+                    <div className="form-privacy-note">
+                      <Lock size={12} />
+                      <span>Strict confidentiality guaranteed. We never share customer data.</span>
+                    </div>
+                  </div>
+                </form>
+              )}
             </div>
           </div>
         </div>

@@ -14,28 +14,25 @@ logger = logging.getLogger("multi_agent.director")
 # 1. Sub-Agents & External Integrations
 # ==============================================================================
 
-# Register specialized sub-agents
+# Secure Toolset Configuration
+# Public demo visitors have access to Search Specialist & Web Scraper.
+# Personal Zapier MCP is isolated to backend operations (lead processing & admin alerts).
 tools_list = [
     AgentTool(agent=search_agent),
     AgentTool(agent=web_scraper_agent),
 ]
 
-# Optional Zapier MCP external toolset
-zapier_mcp_url = os.environ.get("ZAPIER_MCP_URL")
-
-if zapier_mcp_url:
-    try:
-        zapier_params = StreamableHTTPConnectionParams(url=zapier_mcp_url, timeout=60.0)
-        zapier_toolset = McpToolset(connection_params=zapier_params)
-        tools_list.append(zapier_toolset)
-        logger.info("Zapier MCP toolset loaded successfully")
-    except Exception as e:
-        logger.warning(
-            f"Zapier MCP toolset failed to initialize (URL: {zapier_mcp_url}). "
-            f"Agency will start without Zapier tools. Error: {e}"
-        )
-else:
-    logger.warning("ZAPIER_MCP_URL not set in environment. Zapier toolset will not be loaded.")
+# Only load Zapier into chat if explicitly enabled via ENABLE_PUBLIC_CHAT_ZAPIER=true
+if os.environ.get("ENABLE_PUBLIC_CHAT_ZAPIER", "false").lower() in ("true", "1", "yes"):
+    zapier_mcp_url = os.environ.get("ZAPIER_MCP_URL")
+    if zapier_mcp_url:
+        try:
+            zapier_params = StreamableHTTPConnectionParams(url=zapier_mcp_url, timeout=60.0)
+            zapier_toolset = McpToolset(connection_params=zapier_params)
+            tools_list.append(zapier_toolset)
+            logger.info("Zapier MCP toolset loaded into chat agent (ENABLE_PUBLIC_CHAT_ZAPIER=true)")
+        except Exception as e:
+            logger.warning(f"Zapier MCP toolset failed to initialize: {e}")
 
 # ==============================================================================
 # 2. Director Agent (Supervisor)
@@ -65,8 +62,7 @@ def get_director_agent(model: str | None = None) -> Agent:
             "You manage a specialized team of AI agents: "
             "- `search_specialist_agent`: Use this agent to search the live web via Google Search for real-time facts, current news, and documentation links. "
             "- `web_scraper_agent`: Use this agent to scrape, read, and extract content from specific website URLs and domains. "
-            "You also have direct access to the Zapier MCP Toolset to communicate outside the agency (e.g., sending Slack messages, drafting Gmails, managing Google Calendar events) if configured. "
-            "You do not solve complex research or domain tasks yourself. You coordinate your team, delegate tasks to the appropriate sub-agent, use external tools when needed, and synthesize the final outcome to the user."
+            "You do not solve complex research or domain tasks yourself. You coordinate your team, delegate tasks to the appropriate sub-agent, and synthesize the final outcome to the user."
         ),
         tools=tools_list,
     )

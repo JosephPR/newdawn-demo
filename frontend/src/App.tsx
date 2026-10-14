@@ -3,6 +3,7 @@ import { Box, MessageSquare, Menu, Database, Wrench, Activity, Sparkles, Plus, T
 import { ChatInterface } from './components/ChatInterface';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LandingPage } from './components/LandingPage';
+import { LoginPage } from './components/LoginPage';
 import { AuditLogPanel } from './components/AuditLogPanel';
 import { SettingsModal } from './components/SettingsModal';
 import { ModelSelector, type ModelOption } from './components/ModelSelector';
@@ -22,10 +23,14 @@ interface SessionInfo {
   model?: string | null;
 }
 
+interface AuthenticatedAppProps {
+  onNavigateToShowcase: () => void;
+}
+
 /**
  * Inner app that uses auth context — rendered only when authenticated.
  */
-function AuthenticatedApp() {
+function AuthenticatedApp({ onNavigateToShowcase }: AuthenticatedAppProps) {
   const { user, signOut, getIdToken } = useAuth();
   const [currentSessionId, setCurrentSessionId] = useState<string>('');
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
@@ -33,7 +38,6 @@ function AuthenticatedApp() {
   const [showAuditTrail, setShowAuditTrail] = useState<boolean>(false);
   const [showKPIs, setShowKPIs] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
-  const [showLandingView, setShowLandingView] = useState<boolean>(false);
   const [models, setModels] = useState<ModelOption[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('gemini-3.1-pro-preview');
   const kpiDropdownRef = useRef<HTMLDivElement>(null);
@@ -286,7 +290,7 @@ function AuthenticatedApp() {
         <div className="sidebar-header">
           <div className="sidebar-title">
             <Box size={24} className="text-[var(--brand-primary)]" />
-            <span>Multi-Agent Starter</span>
+            <span>NewDawn Agency OS</span>
           </div>
         </div>
       
@@ -556,9 +560,9 @@ function AuthenticatedApp() {
             </button>
 
             <button 
-              className={`audit-toggle-btn ${showLandingView ? 'active' : ''}`}
-              onClick={() => setShowLandingView(!showLandingView)}
-              title="View Architecture & Client Showcase"
+              className="audit-toggle-btn"
+              onClick={onNavigateToShowcase}
+              title="View Architecture & Client Showcase (/showcase)"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -566,8 +570,8 @@ function AuthenticatedApp() {
                 padding: '0.45rem 0.8rem',
                 borderRadius: '8px',
                 border: '1px solid var(--border-color)',
-                background: showLandingView ? 'rgba(249, 115, 22, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                color: showLandingView ? '#f97316' : 'var(--text-secondary)',
+                background: 'rgba(255, 255, 255, 0.05)',
+                color: 'var(--text-secondary)',
                 fontSize: '0.85rem',
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -587,33 +591,52 @@ function AuthenticatedApp() {
         </header>
 
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
-          {showLandingView ? (
-            <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
-              <LandingPage onBackToWorkspace={() => setShowLandingView(false)} />
-            </div>
-          ) : (
-            <>
-              {currentSessionId && (
-                <ChatInterface
-                  key={currentSessionId}
-                  sessionId={currentSessionId}
-                  selectedModel={selectedModel}
-                  onMessageSent={refreshSessions}
-                />
-              )}
+          {currentSessionId && (
+            <ChatInterface
+              key={currentSessionId}
+              sessionId={currentSessionId}
+              selectedModel={selectedModel}
+              onMessageSent={refreshSessions}
+            />
+          )}
 
-              {showAuditTrail && (
-                <AuditLogPanel onClose={() => setShowAuditTrail(false)} authHeaders={authHeaders} />
-              )}
-              {showSettings && (
-                <SettingsModal onClose={() => setShowSettings(false)} authHeaders={authHeaders} />
-              )}
-            </>
+          {showAuditTrail && (
+            <AuditLogPanel onClose={() => setShowAuditTrail(false)} authHeaders={authHeaders} />
+          )}
+          {showSettings && (
+            <SettingsModal onClose={() => setShowSettings(false)} authHeaders={authHeaders} />
           )}
         </div>
       </main>
     </div>
   );
+}
+
+/**
+ * Hook to track current pathname and handle client-side routing.
+ */
+function useCurrentPath() {
+  const [currentPath, setCurrentPath] = useState(() => {
+    return window.location.pathname.toLowerCase() || '/';
+  });
+
+  useEffect(() => {
+    const onLocationChange = () => {
+      setCurrentPath(window.location.pathname.toLowerCase() || '/');
+    };
+    window.addEventListener('popstate', onLocationChange);
+    return () => window.removeEventListener('popstate', onLocationChange);
+  }, []);
+
+  const navigate = useCallback((to: string) => {
+    if (window.location.pathname.toLowerCase() !== to.toLowerCase()) {
+      window.history.pushState({}, '', to);
+      setCurrentPath(to.toLowerCase());
+      window.scrollTo(0, 0);
+    }
+  }, []);
+
+  return { currentPath, navigate };
 }
 
 /**
@@ -628,10 +651,11 @@ function App() {
 }
 
 /**
- * Gate component — shows LoginPage until authenticated, then the full app.
+ * Gate component — routes between Showcase landing page and Live App workspace.
  */
 function AppGate() {
   const { user, loading } = useAuth();
+  const { currentPath, navigate } = useCurrentPath();
 
   if (loading) {
     return (
@@ -649,11 +673,42 @@ function AppGate() {
     );
   }
 
-  if (!user) {
-    return <LandingPage />;
+  // Workspace endpoint: /app or /workspace
+  const isWorkspacePath = currentPath.startsWith('/app') || currentPath.startsWith('/workspace');
+
+  if (isWorkspacePath) {
+    if (!user) {
+      return (
+        <LoginPage 
+          onBackToLanding={() => navigate('/')} 
+          onSignInSuccess={() => navigate('/app')} 
+        />
+      );
+    }
+    return <AuthenticatedApp onNavigateToShowcase={() => navigate('/showcase')} />;
   }
 
-  return <AuthenticatedApp />;
+  // Explicit /login endpoint
+  if (currentPath === '/login') {
+    if (user) {
+      navigate('/app');
+      return null;
+    }
+    return (
+      <LoginPage 
+        onBackToLanding={() => navigate('/')} 
+        onSignInSuccess={() => navigate('/app')} 
+      />
+    );
+  }
+
+  // Showcase & Client Landing Page: / or /showcase (and all other paths)
+  return (
+    <LandingPage
+      onBackToWorkspace={user ? () => navigate('/app') : undefined}
+      onNavigateToWorkspace={() => navigate('/app')}
+    />
+  );
 }
 
 export default App;

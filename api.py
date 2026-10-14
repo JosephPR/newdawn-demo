@@ -3,7 +3,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()  # Load .env before any code reads os.environ
 
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Request, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -19,10 +19,18 @@ import os
 import uuid
 import logging
 import traceback
+import time
 from contextlib import asynccontextmanager
 from google.adk.models import LLMRegistry, LiteLlm
 from typing import Optional, Any
 import json
+
+# Administrator accounts with unlimited demo access
+ADMIN_EMAILS = {"reilly4181@gmail.com"}
+DEMO_MESSAGE_LIMIT = int(os.environ.get("DEMO_MESSAGE_LIMIT", "15"))
+
+# In-memory rate limiting tracker (timestamp of last request per user)
+_last_request_time: dict[str, float] = {}
 
 import litellm
 
@@ -267,19 +275,21 @@ async def lifespan(app: FastAPI):
     logger.info("Lifespan ended.")
 
 app = FastAPI(
-    title="Multi-Agent Starter API",
-    description="An API to interact with the Multi-Agent Starter system.",
+    title="NewDawn Agency OS API",
+    description="Enterprise Multi-Agent Orchestration & Governance API powered by Google ADK.",
     version="1.1.0",
     lifespan=lifespan,
 )
 
 # Add CORS middleware
+_cors_origins_raw = os.environ.get("ALLOWED_ORIGINS", "*").strip()
+_cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()] if _cors_origins_raw != "*" else ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins for local development
-    allow_credentials=False,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_origins=_cors_origins,
+    allow_credentials=True if _cors_origins_raw != "*" else False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ---------------------------------------------------------------------------
@@ -331,6 +341,14 @@ class ApprovalInfo(BaseModel):
     details: dict
     timestamp: str
 
+class McpConnection(BaseModel):
+    id: str
+    name: str
+    type: str = "mcp_url"  # "mcp_url" or "api_key"
+    url_or_key: str
+    description: Optional[str] = ""
+    enabled: bool = True
+
 class IntegrationsSettings(BaseModel):
     service_api_key: Optional[str] = None
     zapier_mcp_url: Optional[str] = None
@@ -340,6 +358,7 @@ class IntegrationsSettings(BaseModel):
     xai_api_key: Optional[str] = None
     deepseek_api_key: Optional[str] = None
     ollama_api_base: Optional[str] = None
+    custom_connections: Optional[list[McpConnection]] = []
 
 def setup_user_model_credentials(user_uid: str) -> None:
     """Load user-specific credentials for external model providers if configured in Firestore."""
@@ -362,8 +381,39 @@ def setup_user_model_credentials(user_uid: str) -> None:
                 os.environ["DEEPSEEK_API_KEY"] = data["deepseek_api_key"].strip()
             if data.get("ollama_api_base"):
                 os.environ["OLLAMA_API_BASE"] = data["ollama_api_base"].strip()
+            if data.get("service_api_key"):
+                os.environ["CUSTOM_SERVICE_KEY"] = data["service_api_key"].strip()
     except Exception as e:
         logger.warning(f"Could not load custom model credentials for user {user_uid}: {e}")
+
+def get_user_demo_turns(user_uid: str) -> int:
+    """Retrieve count of demo messages submitted using the server's shared API key."""
+    from shared.audit_log import _get_db
+    try:
+        db = _get_db()
+        doc = db.collection("adk_apps").document(APP_NAME).collection("users").document(user_uid).get()
+        if doc.exists:
+            return int((doc.to_dict() or {}).get("demo_turns_used", 0))
+        return 0
+    except Exception as e:
+        logger.warning(f"Could not read demo turns for {user_uid}: {e}")
+        return 0
+
+
+def increment_user_demo_turns(user_uid: str) -> int:
+    """Increment demo turn counter in Firestore for the given user."""
+    from shared.audit_log import _get_db
+    from google.cloud import firestore
+    try:
+        db = _get_db()
+        doc_ref = db.collection("adk_apps").document(APP_NAME).collection("users").document(user_uid)
+        doc_ref.set({"demo_turns_used": firestore.Increment(1)}, merge=True)
+        doc = doc_ref.get()
+        return int((doc.to_dict() or {}).get("demo_turns_used", 1))
+    except Exception as e:
+        logger.warning(f"Could not increment demo turns for {user_uid}: {e}")
+        return 1
+
 
 # ---------------------------------------------------------------------------
 # Endpoints
@@ -383,6 +433,30 @@ async def chat_endpoint(request: ChatRequest, user: AuthenticatedUser = Depends(
     if not request.message.strip():
         logger.warning(f"Empty message received from user: {user.uid}")
         raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    # 1. Anti-spam rate limiting (minimum 2 seconds between consecutive prompts)
+    now = time.time()
+    last_req = _last_request_time.get(user.uid, 0.0)
+    if now - last_req < 2.0:
+        logger.warning(f"Rate limit triggered for user {user.uid} (dt={now - last_req:.2f}s)")
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit exceeded: Please wait at least 2 seconds between prompts."
+        )
+    _last_request_time[user.uid] = now
+
+    # 2. Demo Quota Enforcement on shared server GOOGLE_API_KEY
+    is_admin = bool(user.email and user.email.lower() in {e.lower() for e in ADMIN_EMAILS})
+    if not is_admin:
+        turns_used = get_user_demo_turns(user.uid)
+        if turns_used >= DEMO_MESSAGE_LIMIT:
+            logger.warning(f"User {user.uid} ({user.email}) reached demo quota ({turns_used}/{DEMO_MESSAGE_LIMIT})")
+            raise HTTPException(
+                status_code=429,
+                detail=f"Demo quota reached ({DEMO_MESSAGE_LIMIT}/{DEMO_MESSAGE_LIMIT} free messages). To continue using the workspace, connect your own API key in Settings (⚙️) or contact our team to deploy a private instance."
+            )
+        # Increment quota on successful submission
+        increment_user_demo_turns(user.uid)
 
     # Ensure the session exists – create it on first message
     existing = await session_service.get_session(
@@ -482,6 +556,7 @@ async def chat_endpoint(request: ChatRequest, user: AuthenticatedUser = Depends(
 
 @app.post("/sessions", response_model=CreateSessionResponse)
 async def create_session(
+    background_tasks: BackgroundTasks,
     request: Optional[CreateSessionRequest] = None,
     user: AuthenticatedUser = Depends(get_current_user)
 ):
@@ -497,6 +572,17 @@ async def create_session(
         state=initial_state,
     )
     logger.info(f"Created new session {new_id} for user {user.uid}")
+
+    # Alert admin in background when a new prospect launches the workspace
+    from lead_service import record_and_notify_workspace_entry
+    background_tasks.add_task(
+        record_and_notify_workspace_entry,
+        user.uid,
+        user.email,
+        user.name,
+        user.picture
+    )
+
     return CreateSessionResponse(session_id=new_id)
 
 
@@ -717,12 +803,17 @@ async def respond_to_approval(
 
 @app.get("/me")
 async def get_current_user_info(user: AuthenticatedUser = Depends(get_current_user)):
-    """Return the authenticated user's profile info."""
+    """Return the authenticated user's profile info and demo quota status."""
+    is_admin = bool(user.email and user.email.lower() in {e.lower() for e in ADMIN_EMAILS})
+    demo_turns_used = get_user_demo_turns(user.uid)
     return {
         "uid": user.uid,
         "email": user.email,
         "name": user.name,
         "picture": user.picture,
+        "is_admin": is_admin,
+        "demo_turns_used": demo_turns_used,
+        "demo_turns_limit": DEMO_MESSAGE_LIMIT,
     }
 
 
@@ -763,6 +854,34 @@ async def update_settings(settings: IntegrationsSettings, user: AuthenticatedUse
     except Exception as e:
         logger.error(f"Failed to update settings for {user.uid}: {e}")
         raise HTTPException(status_code=500, detail="Could not update settings.")
+
+# ---------------------------------------------------------------------------
+# Scoping Consultation Intake & Autonomous Intelligence Pipeline
+# ---------------------------------------------------------------------------
+class ScopingRequest(BaseModel):
+    name: str
+    email: str
+    company: Optional[str] = ""
+    industry: Optional[str] = "finance"
+    scope: Optional[str] = ""
+    timestamp: Optional[str] = None
+
+@app.post("/api/scoping-requests")
+async def handle_scoping_request(req: ScopingRequest, background_tasks: BackgroundTasks):
+    """Receive client consultation request, queue autonomous intelligence research and Zapier email dispatch."""
+    from lead_service import process_scoping_lead
+    data = req.model_dump()
+    background_tasks.add_task(process_scoping_lead, data)
+    return {
+        "status": "ok",
+        "message": "Scoping consultation request received. Autonomous intelligence research initialized."
+    }
+
+@app.get("/api/scoping-requests")
+async def list_scoping_requests():
+    """Retrieve logged client scoping inquiries."""
+    from lead_service import get_all_leads
+    return {"leads": get_all_leads()}
 
 # ---------------------------------------------------------------------------
 # Serve the React frontend (production only)

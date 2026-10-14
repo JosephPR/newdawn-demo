@@ -1,7 +1,16 @@
 import { useState, useEffect } from 'react';
-import { X, Save, Key, Cpu, Globe, Check, AlertCircle } from 'lucide-react';
+import { X, Save, Key, Cpu, Globe, Check, AlertCircle, Plus, Trash2, Database, Server } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
+
+export interface CustomConnection {
+  id: string;
+  name: string;
+  type: 'mcp_url' | 'api_key';
+  url_or_key: string;
+  description?: string;
+  enabled?: boolean;
+}
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -23,6 +32,14 @@ export function SettingsModal({ onClose, authHeaders }: SettingsModalProps) {
   const [serviceKey, setServiceKey] = useState('');
   const [zapierUrl, setZapierUrl] = useState('');
 
+  // Dynamic Multiple MCP / Service Key Connections
+  const [customConnections, setCustomConnections] = useState<CustomConnection[]>([]);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newConnName, setNewConnName] = useState('');
+  const [newConnType, setNewConnType] = useState<'mcp_url' | 'api_key'>('mcp_url');
+  const [newConnValue, setNewConnValue] = useState('');
+  const [newConnDesc, setNewConnDesc] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -42,6 +59,9 @@ export function SettingsModal({ onClose, authHeaders }: SettingsModalProps) {
           setOllamaUrl(data.ollama_api_base || '');
           setServiceKey(data.service_api_key || '');
           setZapierUrl(data.zapier_mcp_url || '');
+          if (data.custom_connections && Array.isArray(data.custom_connections)) {
+            setCustomConnections(data.custom_connections);
+          }
         }
       } catch (err) {
         console.error('Failed to load settings', err);
@@ -51,6 +71,33 @@ export function SettingsModal({ onClose, authHeaders }: SettingsModalProps) {
     };
     fetchSettings();
   }, [authHeaders]);
+
+  const handleAddConnection = () => {
+    if (!newConnName.trim() || !newConnValue.trim()) return;
+    const newConn: CustomConnection = {
+      id: `conn-${Date.now()}`,
+      name: newConnName.trim(),
+      type: newConnType,
+      url_or_key: newConnValue.trim(),
+      description: newConnDesc.trim(),
+      enabled: true,
+    };
+    setCustomConnections((prev) => [...prev, newConn]);
+    setNewConnName('');
+    setNewConnValue('');
+    setNewConnDesc('');
+    setShowAddForm(false);
+  };
+
+  const handleRemoveConnection = (id: string) => {
+    setCustomConnections((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  const handleToggleConnection = (id: string) => {
+    setCustomConnections((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, enabled: !(c.enabled ?? true) } : c))
+    );
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -72,10 +119,11 @@ export function SettingsModal({ onClose, authHeaders }: SettingsModalProps) {
           ollama_api_base: ollamaUrl,
           service_api_key: serviceKey,
           zapier_mcp_url: zapierUrl,
+          custom_connections: customConnections,
         }),
       });
       if (res.ok) {
-        setMessage({ text: 'Settings saved successfully!', type: 'success' });
+        setMessage({ text: 'Settings & MCP connections saved successfully!', type: 'success' });
         setTimeout(() => onClose(), 1200);
       } else {
         setMessage({ text: 'Failed to save settings. Please try again.', type: 'error' });
@@ -122,7 +170,7 @@ export function SettingsModal({ onClose, authHeaders }: SettingsModalProps) {
         background: '#0f172a',
         padding: '1.75rem',
         borderRadius: '16px',
-        width: '520px',
+        width: '580px',
         maxWidth: '100%',
         maxHeight: '90vh',
         overflowY: 'auto',
@@ -305,30 +353,353 @@ export function SettingsModal({ onClose, authHeaders }: SettingsModalProps) {
               </>
             ) : (
               <>
-                <div>
-                  <label style={labelStyle}>
-                    <span>Service API Key (Optional)</span>
-                  </label>
-                  <input 
-                    type="password"
-                    value={serviceKey}
-                    onChange={(e) => setServiceKey(e.target.value)}
-                    placeholder="sk-..."
-                    style={inputStyle}
-                  />
+                <div style={{
+                  fontSize: '0.8rem',
+                  color: '#94a3b8',
+                  background: 'rgba(56, 189, 248, 0.06)',
+                  border: '1px solid rgba(56, 189, 248, 0.2)',
+                  padding: '0.75rem 0.9rem',
+                  borderRadius: '10px',
+                  lineHeight: 1.5,
+                }}>
+                  Connect your private databases (PostgreSQL, BigQuery, Snowflake) or internal APIs via Model Context Protocol (MCP). You can add multiple endpoints and service API keys below.
                 </div>
-                
-                <div>
-                  <label style={labelStyle}>
-                    <span>Zapier MCP URL</span>
-                  </label>
-                  <input 
-                    type="text"
-                    value={zapierUrl}
-                    onChange={(e) => setZapierUrl(e.target.value)}
-                    placeholder="https://nla.zapier.com/mcp/..."
-                    style={inputStyle}
-                  />
+
+                {/* Primary Default Connectors */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  <div>
+                    <label style={labelStyle}>
+                      <span>Default Zapier MCP URL</span>
+                      <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Primary Workspace Bridge</span>
+                    </label>
+                    <input 
+                      type="text"
+                      value={zapierUrl}
+                      onChange={(e) => setZapierUrl(e.target.value)}
+                      placeholder="https://mcp.zapier.com/api/v1/connect?token=..."
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>
+                      <span>Default Service API Key</span>
+                      <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Internal Service Bearer Token</span>
+                    </label>
+                    <input 
+                      type="password"
+                      value={serviceKey}
+                      onChange={(e) => setServiceKey(e.target.value)}
+                      placeholder="sk-..."
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+
+                {/* Multiple Custom MCP Connections Section */}
+                <div style={{
+                  marginTop: '0.5rem',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                  paddingTop: '1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                        <Database size={15} color="#38bdf8" />
+                        <span>Enterprise MCP & Service Connections</span>
+                        <span style={{
+                          fontSize: '0.7rem',
+                          background: 'rgba(56, 189, 248, 0.15)',
+                          color: '#38bdf8',
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '12px',
+                          fontWeight: 700,
+                        }}>
+                          {customConnections.length}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.15rem' }}>
+                        Postgres, BigQuery, Snowflake, and internal microservice endpoints
+                      </div>
+                    </div>
+
+                    {!showAddForm && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAddForm(true)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          background: 'rgba(56, 189, 248, 0.12)',
+                          color: '#38bdf8',
+                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                          padding: '0.35rem 0.65rem',
+                          borderRadius: '7px',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        <Plus size={13} />
+                        Add Connection
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Add Connection Form Card */}
+                  {showAddForm && (
+                    <div style={{
+                      background: 'rgba(15, 23, 42, 0.9)',
+                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                      borderRadius: '10px',
+                      padding: '1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.75rem',
+                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+                    }}>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>New MCP Endpoint / Service Key</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowAddForm(false)}
+                          style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0 }}
+                        >
+                          <X size={15} />
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                        <div>
+                          <label style={{ ...labelStyle, fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                            Connection Name
+                          </label>
+                          <input
+                            type="text"
+                            value={newConnName}
+                            onChange={(e) => setNewConnName(e.target.value)}
+                            placeholder="e.g. Postgres Warehouse MCP"
+                            style={{ ...inputStyle, padding: '0.5rem 0.7rem', fontSize: '0.8rem' }}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ ...labelStyle, fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                            Connection Type
+                          </label>
+                          <select
+                            value={newConnType}
+                            onChange={(e) => setNewConnType(e.target.value as 'mcp_url' | 'api_key')}
+                            style={{
+                              ...inputStyle,
+                              padding: '0.5rem 0.7rem',
+                              fontSize: '0.8rem',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <option value="mcp_url" style={{ background: '#0f172a' }}>MCP Server URL (SSE / HTTP)</option>
+                            <option value="api_key" style={{ background: '#0f172a' }}>Service API Key / Token</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ ...labelStyle, fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                          {newConnType === 'mcp_url' ? 'MCP Server Endpoint URL' : 'API Key / Secret Token'}
+                        </label>
+                        <input
+                          type={newConnType === 'mcp_url' ? 'text' : 'password'}
+                          value={newConnValue}
+                          onChange={(e) => setNewConnValue(e.target.value)}
+                          placeholder={newConnType === 'mcp_url' ? 'https://mcp.internal.corp/sse' : 'sk-svc-...'}
+                          style={{ ...inputStyle, padding: '0.5rem 0.7rem', fontSize: '0.8rem' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ ...labelStyle, fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                          Description (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={newConnDesc}
+                          onChange={(e) => setNewConnDesc(e.target.value)}
+                          placeholder="e.g. Read-only PostgreSQL replica for analytics queries"
+                          style={{ ...inputStyle, padding: '0.5rem 0.7rem', fontSize: '0.8rem' }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.25rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowAddForm(false)}
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            borderRadius: '6px',
+                            padding: '0.4rem 0.8rem',
+                            color: '#94a3b8',
+                            fontSize: '0.78rem',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleAddConnection}
+                          disabled={!newConnName.trim() || !newConnValue.trim()}
+                          style={{
+                            background: '#0284c7',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '0.4rem 0.85rem',
+                            color: '#fff',
+                            fontSize: '0.78rem',
+                            fontWeight: 600,
+                            cursor: (!newConnName.trim() || !newConnValue.trim()) ? 'not-allowed' : 'pointer',
+                            opacity: (!newConnName.trim() || !newConnValue.trim()) ? 0.6 : 1,
+                          }}
+                        >
+                          Add to Configuration
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* List of Configured Connections */}
+                  {customConnections.length === 0 && !showAddForm ? (
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px dashed rgba(255, 255, 255, 0.12)',
+                      borderRadius: '8px',
+                      padding: '1.25rem 1rem',
+                      textAlign: 'center',
+                      color: '#64748b',
+                      fontSize: '0.8rem',
+                    }}>
+                      No custom MCP connections added yet. Click <strong>+ Add Connection</strong> to attach PostgreSQL, BigQuery, Snowflake, or custom service APIs.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {customConnections.map((conn) => (
+                        <div
+                          key={conn.id}
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: `1px solid ${conn.enabled ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.06)'}`,
+                            borderRadius: '8px',
+                            padding: '0.65rem 0.85rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '0.75rem',
+                            opacity: conn.enabled ? 1 : 0.6,
+                            transition: 'all 0.2s',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', overflow: 'hidden' }}>
+                            <div style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '7px',
+                              background: conn.type === 'mcp_url' ? 'rgba(56, 189, 248, 0.12)' : 'rgba(251, 191, 36, 0.12)',
+                              color: conn.type === 'mcp_url' ? '#38bdf8' : '#fbbf24',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}>
+                              {conn.type === 'mcp_url' ? <Server size={16} /> : <Key size={16} />}
+                            </div>
+
+                            <div style={{ overflow: 'hidden' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f1f5f9' }}>
+                                  {conn.name}
+                                </span>
+                                <span style={{
+                                  fontSize: '0.65rem',
+                                  padding: '0.1rem 0.35rem',
+                                  borderRadius: '4px',
+                                  fontWeight: 600,
+                                  background: conn.type === 'mcp_url' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(251, 191, 36, 0.15)',
+                                  color: conn.type === 'mcp_url' ? '#38bdf8' : '#fbbf24',
+                                }}>
+                                  {conn.type === 'mcp_url' ? 'MCP URL' : 'API KEY'}
+                                </span>
+                              </div>
+
+                              <div style={{
+                                fontSize: '0.72rem',
+                                color: '#94a3b8',
+                                fontFamily: 'monospace',
+                                textOverflow: 'ellipsis',
+                                overflow: 'hidden',
+                                whiteSpace: 'nowrap',
+                                maxWidth: '320px',
+                                marginTop: '0.15rem',
+                              }}>
+                                {conn.type === 'api_key'
+                                  ? `${conn.url_or_key.slice(0, 6)}••••••••`
+                                  : conn.url_or_key}
+                              </div>
+
+                              {conn.description && (
+                                <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.1rem' }}>
+                                  {conn.description}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleConnection(conn.id)}
+                              title={conn.enabled ? 'Click to disable' : 'Click to enable'}
+                              style={{
+                                background: conn.enabled ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                border: `1px solid ${conn.enabled ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255, 255, 255, 0.1)'}`,
+                                color: conn.enabled ? '#4ade80' : '#64748b',
+                                fontSize: '0.7rem',
+                                fontWeight: 600,
+                                padding: '0.25rem 0.5rem',
+                                borderRadius: '5px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {conn.enabled ? 'Active' : 'Paused'}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveConnection(conn.id)}
+                              title="Delete connection"
+                              style={{
+                                background: 'rgba(244, 63, 94, 0.1)',
+                                border: '1px solid rgba(244, 63, 94, 0.2)',
+                                color: '#fb7185',
+                                padding: '0.3rem',
+                                borderRadius: '5px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}
