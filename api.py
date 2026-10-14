@@ -420,7 +420,7 @@ def increment_user_demo_turns(user_uid: str) -> int:
 # ---------------------------------------------------------------------------
 
 @app.get("/models", response_model=list[ModelOption])
-async def list_models(user: AuthenticatedUser = Depends(get_current_user)):
+async def list_models():
     """List all supported model choices across Google, OpenAI, Anthropic, and Open Source."""
     return AVAILABLE_MODELS
 
@@ -562,9 +562,10 @@ async def create_session(
 ):
     """Create a new chat session and return its ID."""
     new_id = str(uuid.uuid4())
-    initial_state = {}
-    if request and request.model:
-        initial_state["_selected_model"] = request.model
+    default_director = os.environ.get("DIRECTOR_MODEL", "gemini-3.1-pro-preview")
+    initial_state = {
+        "_selected_model": (request.model if request and request.model else default_director)
+    }
     await session_service.create_session(
         app_name=APP_NAME,
         user_id=user.uid,

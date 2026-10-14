@@ -27,6 +27,8 @@ interface AuthenticatedAppProps {
   onNavigateToShowcase: () => void;
 }
 
+const DEFAULT_MODEL = 'gemini-3.1-pro-preview';
+
 /**
  * Inner app that uses auth context — rendered only when authenticated.
  */
@@ -39,7 +41,7 @@ function AuthenticatedApp({ onNavigateToShowcase }: AuthenticatedAppProps) {
   const [showKPIs, setShowKPIs] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [models, setModels] = useState<ModelOption[]>([]);
-  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.1-pro-preview');
+  const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_MODEL);
   const kpiDropdownRef = useRef<HTMLDivElement>(null);
   const [stats, setStats] = useState<{
     successful_actions: number;
@@ -53,7 +55,6 @@ function AuthenticatedApp({ onNavigateToShowcase }: AuthenticatedAppProps) {
     const token = await getIdToken();
     return {
       'Content-Type': 'application/json',
-
       'Authorization': `Bearer ${token}`,
     };
   }, [getIdToken]);
@@ -98,8 +99,7 @@ function AuthenticatedApp({ onNavigateToShowcase }: AuthenticatedAppProps) {
   useEffect(() => {
     const fetchModels = async () => {
       try {
-        const headers = await authHeaders();
-        const res = await fetch(`${API_BASE}/models`, { headers });
+        const res = await fetch(`${API_BASE}/models`);
         if (res.ok) {
           const data: ModelOption[] = await res.json();
           setModels(data);
@@ -113,7 +113,7 @@ function AuthenticatedApp({ onNavigateToShowcase }: AuthenticatedAppProps) {
       }
     };
     fetchModels();
-  }, [authHeaders]);
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Switch to an existing session
@@ -125,6 +125,8 @@ function AuthenticatedApp({ onNavigateToShowcase }: AuthenticatedAppProps) {
     const match = listToSearch.find((s) => s.session_id === sid);
     if (match?.model) {
       setSelectedModel(match.model);
+    } else {
+      setSelectedModel(DEFAULT_MODEL);
     }
   }, [sessions]);
 
@@ -142,16 +144,18 @@ function AuthenticatedApp({ onNavigateToShowcase }: AuthenticatedAppProps) {
 
 
   // ---------------------------------------------------------------------------
-  // Create a brand-new session via the backend
+  // Create a brand-new session via the backend (defaults to Gemini)
   // ---------------------------------------------------------------------------
-  const createNewSession = useCallback(async () => {
+  const createNewSession = useCallback(async (forcedModel?: string | React.MouseEvent) => {
     setIsCreating(true);
+    const targetModel = typeof forcedModel === 'string' ? forcedModel : DEFAULT_MODEL;
+    setSelectedModel(targetModel);
     try {
       const headers = await authHeaders();
       const res = await fetch(`${API_BASE}/sessions`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ model: selectedModel }),
+        body: JSON.stringify({ model: targetModel }),
       });
       if (!res.ok) throw new Error('Failed to create session');
       const data: { session_id: string } = await res.json();
@@ -169,7 +173,7 @@ function AuthenticatedApp({ onNavigateToShowcase }: AuthenticatedAppProps) {
     } finally {
       setIsCreating(false);
     }
-  }, [authHeaders, refreshSessions, selectedModel]);
+  }, [authHeaders, refreshSessions]);
 
   // ---------------------------------------------------------------------------
   // Delete a session
