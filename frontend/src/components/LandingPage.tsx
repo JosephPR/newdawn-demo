@@ -223,13 +223,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       {/* Hero Section */}
       <section className="hero-section">
         <h1 className="hero-title">
-          Autonomous Multi-Agent Systems <span className="gradient-text">Custom-Fitted to Your Business</span>
+          Multi-Agent Intelligence <span className="gradient-text">Engineered for Your Enterprise</span>
         </h1>
 
         <p className="hero-subtitle">
-          Don't settle for one-size-fits-all AI wrappers. New Dawn provides an enterprise multi-agent 
-          foundation engineered to mold around your company's proprietary workflows — with custom agent 
-          personas, internal database connectors, bespoke toolsets, and strict Human-in-the-Loop approval policies.
+          Move beyond simple chatbots. New Dawn coordinates specialized autonomous agents that browse live data, 
+          extract intelligence, and execute multi-step workflows — protected by strict human approval guardrails 
+          and zero vendor lock-in.
         </p>
 
         {authError && (
@@ -256,7 +256,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </>
             ) : (
               <>
-                <span>Try Interactive Live Workspace</span>
+                <span>Try Interactive Live Demo</span>
                 <ArrowRight size={18} />
               </>
             )}
@@ -267,15 +267,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             onClick={() => scrollToSection('customization')}
           >
             <Sliders size={18} />
-            <span>See How It Fits Your Industry</span>
+            <span>Explore Industry Solutions</span>
           </button>
         </div>
 
         {/* Customization Guarantee Value Pills */}
         <div className="hero-custom-pills">
           <div className="pill-item">
-            <Sliders size={15} />
-            <span>Bespoke Sub-Agent Personas</span>
+            <Bot size={15} />
+            <span>Autonomous Agent Teams</span>
           </div>
           <div className="pill-item">
             <Database size={15} />
@@ -283,11 +283,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
           <div className="pill-item">
             <ShieldCheck size={15} />
-            <span>Custom Approval Guardrails</span>
+            <span>Human-in-the-Loop Guardrails</span>
           </div>
           <div className="pill-item">
             <Cpu size={15} />
-            <span>Zero Vendor / Model Lock-In</span>
+            <span>Zero Model Lock-In</span>
           </div>
         </div>
 
@@ -811,11 +811,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       {/* Industry Customization Showcase */}
       <section id="customization" className="section-container customization-section">
         <div className="section-header">
-          <span className="section-badge">100% Tailored to Your Business</span>
-          <h2 className="section-title">One Multi-Agent Core. Infinite Business Adaptations.</h2>
+          <span className="section-badge">Enterprise-Ready Solutions</span>
+          <h2 className="section-title">One Multi-Agent Core. Unlimited Business Applications.</h2>
           <p className="section-subtitle">
-            Whether you run a private equity fund, law practice, real estate brokerage, e-commerce brand, or B2B SaaS, 
-            New Dawn configures its agents, tools, and guardrails to match your exact business logic.
+            Whether you operate in private equity, legal compliance, commercial real estate, e-commerce, or B2B SaaS, 
+            New Dawn coordinates agents, tools, and security guardrails tailored to your operational standards.
           </p>
         </div>
 
@@ -1045,10 +1045,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       {/* CTA Banner */}
       <section className="cta-banner-section">
         <div className="cta-banner-inner">
-          <h2>Ready to Deploy Autonomous Agents for Your Organization?</h2>
+          <h2>Ready to Put Autonomous Agents to Work?</h2>
           <p>
-            Experience the live multi-agent director, inspect real-time tool execution, 
-            and see human-in-the-loop safety in action.
+            Test drive the live multi-agent director, observe real-time tool orchestration, 
+            and experience human-in-the-loop governance firsthand.
           </p>
           <div className="cta-banner-actions">
             <button 
@@ -1063,12 +1063,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 </>
               ) : (user || onBackToWorkspace) ? (
                 <>
-                  <span>Open Interactive Workspace</span>
+                  <span>Open Active Workspace</span>
                   <ArrowRight size={18} />
                 </>
               ) : (
                 <>
-                  <span>Launch Interactive Workspace</span>
+                  <span>Launch Live Demo</span>
                   <ArrowRight size={18} />
                 </>
               )}
@@ -1078,7 +1078,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               onClick={() => setShowConsultModal(true)}
             >
               <Calendar size={18} />
-              <span>Schedule Technical Consultation</span>
+              <span>Schedule Architecture Scoping</span>
             </button>
           </div>
         </div>
