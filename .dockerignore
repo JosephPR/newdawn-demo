@@ -24,6 +24,8 @@ data/
 # Secrets
 .env
 .env.*
+**/.env
+**/.env.*
 
 # Docs
 *.md

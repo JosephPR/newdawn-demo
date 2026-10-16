@@ -1093,7 +1093,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <span className="brand-title">NEW DAWN</span>
             </div>
             <p className="footer-copyright">
-              NewDawn Agency OS · Enterprise Multi-Agent Architecture Powered by Google ADK & Gemini
+              New Dawn Agency OS · Enterprise Multi-Agent Architecture Powered by Google ADK & Gemini
             </p>
           </div>
         </div>

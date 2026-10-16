@@ -358,6 +358,42 @@ input::placeholder, textarea::placeholder {
   color: white;
 }
 
+/* Agent Markdown Links - Neon Orange */
+.message-content a,
+.markdown-body a {
+  color: #ff6a00;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 106, 0, 0.45);
+  text-underline-offset: 3px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.message-content a:hover,
+.markdown-body a:hover {
+  color: #ff8533;
+  text-decoration-color: #ff8533;
+  text-shadow: 0 0 10px rgba(255, 106, 0, 0.55);
+}
+
+.message-content a:visited,
+.markdown-body a:visited {
+  color: #ff771a;
+}
+
+.message-wrapper.user .message-content a {
+  color: #ffffff;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+}
+
+.message-wrapper.user .message-content a:hover {
+  color: #ffffff;
+  text-decoration-color: #ffffff;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+}
+
 /* Input Area - Glassmorphic */
 .input-area {
   padding: 1.5rem 0 2rem 0;
@@ -852,19 +888,26 @@ input::placeholder, textarea::placeholder {
 .sidebar-tool {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
+  gap: 0.85rem;
+  padding: 0.65rem 0.85rem;
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   transition: all var(--transition-normal);
   margin-bottom: 0.5rem;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  position: relative;
 }
 
 .sidebar-tool:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
-  transform: translateX(2px);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(249, 115, 22, 0.35);
+  transform: translateX(3px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
 }
 
 .tool-icon {
@@ -877,35 +920,50 @@ input::placeholder, textarea::placeholder {
   flex-shrink: 0;
 }
 
-.tool-icon.crm {
-  background: rgba(34, 197, 94, 0.15);
-  color: #4ade80;
+.tool-icon.search {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.25);
 }
 
-.tool-icon.publish {
-  background: rgba(239, 68, 68, 0.15);
-  color: #c084fc;
-}
-
-.tool-icon.enrich {
-  background: rgba(234, 179, 8, 0.15);
-  color: #facc15;
-}
-
-.tool-icon.audit {
-  background: rgba(236, 72, 153, 0.15);
-  color: #f472b6;
+.tool-icon.scraper {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
 .tool-icon.zapier {
   background: rgba(249, 115, 22, 0.15);
   color: #fb923c;
+  border: 1px solid rgba(249, 115, 22, 0.25);
 }
 
 .tool-text {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.tool-action-hint {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #fb923c;
+  background: rgba(249, 115, 22, 0.12);
+  padding: 0.15rem 0.45rem;
+  border-radius: 5px;
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  opacity: 0.75;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.sidebar-tool:hover .tool-action-hint {
+  opacity: 1;
+  background: rgba(249, 115, 22, 0.2);
+  border-color: rgba(249, 115, 22, 0.45);
 }
 
 .tool-name {

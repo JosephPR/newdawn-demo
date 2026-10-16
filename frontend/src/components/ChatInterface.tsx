@@ -21,7 +21,7 @@ interface ChatInterfaceProps {
 const WELCOME_PROMPT_MESSAGE: Message = {
   id: 'welcome-agent-intro',
   role: 'agent',
-  content: `### Welcome to the NewDawn Multi-Agent Demo Workspace! 👋
+  content: `### Welcome to the New Dawn Multi-Agent Demo Workspace! 👋
 
 Here is a quick guide on how this platform operates, what it can do, and how to set it up for your organization:
 
@@ -372,7 +372,15 @@ export function ChatInterface({ sessionId, selectedModel, onMessageSent }: ChatI
                   )}
                 </div>
                 <div className="message-content markdown-body">
-                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                  <ReactMarkdown
+                    components={{
+                      a: ({ node, ...props }) => (
+                        <a {...props} target="_blank" rel="noopener noreferrer" />
+                      ),
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
                 </div>
               </div>
             ))}

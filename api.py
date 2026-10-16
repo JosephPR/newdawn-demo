@@ -274,12 +274,27 @@ async def lifespan(app: FastAPI):
     yield
     logger.info("Lifespan ended.")
 
+IS_PROD = os.environ.get("ENV", "").lower() in ("production", "prod") or os.environ.get("ENVIRONMENT", "").lower() in ("production", "prod")
+
 app = FastAPI(
-    title="NewDawn Agency OS API",
+    title="New Dawn Agency OS API",
     description="Enterprise Multi-Agent Orchestration & Governance API powered by Google ADK.",
     version="1.1.0",
     lifespan=lifespan,
+    docs_url=None if IS_PROD else "/docs",
+    redoc_url=None if IS_PROD else "/redoc",
+    openapi_url=None if IS_PROD else "/openapi.json",
 )
+
+# Security Headers Middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    return response
 
 # Add CORS middleware
 _cors_origins_raw = os.environ.get("ALLOWED_ORIGINS", "*").strip()

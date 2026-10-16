@@ -3,7 +3,7 @@
 set -e
 
 echo "================================================="
-echo " Starting NewDawn Agency OS"
+echo " Starting New Dawn Agency OS"
 echo "================================================="
 
 # Pre-flight check: Root .env file

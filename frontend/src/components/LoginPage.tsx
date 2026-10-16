@@ -52,7 +52,7 @@ export function LoginPage({ onBackToLanding, onSignInSuccess }: LoginPageProps =
           <div className="login-logo-icon">
             <Box size={32} />
           </div>
-          <h1>NewDawn Agency OS</h1>
+          <h1>New Dawn Agency OS</h1>
           <p className="login-subtitle">Enterprise Autonomous Multi-Agent Platform</p>
         </div>
 

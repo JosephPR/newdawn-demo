@@ -25,7 +25,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source code
-COPY api.py cli.py firestore_session.py ./
+COPY api.py cli.py firestore_session.py lead_service.py ./
 COPY agency_director/ ./agency_director/
 COPY web_researcher/ ./web_researcher/
 COPY shared/ ./shared/
@@ -37,4 +37,4 @@ COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 ENV PORT=8080
 EXPOSE ${PORT}
 
-CMD ["sh", "-c", "uvicorn api:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "uvicorn api:app --host 0.0.0.0 --port ${PORT} --proxy-headers --forwarded-allow-ips='*'"]

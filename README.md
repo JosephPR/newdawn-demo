@@ -1,4 +1,4 @@
-# NewDawn Agency OS — Enterprise Multi-Agent Platform & Live Workspace
+# New Dawn Agency OS — Enterprise Multi-Agent Platform & Live Workspace
 
 A client-facing demonstration platform and production-grade reference implementation for building autonomous multi-agent systems using the **Google Agent Development Kit (ADK)**, **Gemini 3.1 Pro / 3.8 Flash**, **FastAPI**, **Google Cloud Firestore**, **Firebase Authentication**, and **React 19 + Vite**.
 

@@ -8,7 +8,7 @@ from shared.config import APP_NAME
 import sys
 
 async def main():
-    parser = argparse.ArgumentParser(description="NewDawn Agency OS CLI")
+    parser = argparse.ArgumentParser(description="New Dawn Agency OS CLI")
     parser.add_argument("--user", type=str, default="local_user", help="User ID for the session")
     parser.add_argument("--session", type=str, default="local_session", help="Session ID")
     args = parser.parse_args()
@@ -21,7 +21,7 @@ async def main():
     )
 
     print("==========================================")
-    print(" Welcome to NewDawn Agency OS Director!  ")
+    print(" Welcome to New Dawn Agency OS Director!  ")
     print("==========================================")
     print("Type 'quit' or 'exit' to end the session.")
     
