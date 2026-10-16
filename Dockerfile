@@ -8,7 +8,7 @@ COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
 COPY frontend/ ./
 
-ARG VITE_FIREBASE_API_KEY=AIzaSyBnMtFzmT1uT-CX1hJsPmdG-SfW6JrZPdc
+ARG VITE_FIREBASE_API_KEY=""
 ARG VITE_FIREBASE_AUTH_DOMAIN=vertaistudy.firebaseapp.com
 ARG VITE_FIREBASE_PROJECT_ID=vertaistudy
 ARG VITE_FIREBASE_STORAGE_BUCKET=vertaistudy.firebasestorage.app
