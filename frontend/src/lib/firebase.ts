@@ -9,13 +9,13 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBnMtFzmT1uT-CX1hJsPmdG-SfW6JrZPdc",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "vertaistudy.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "vertaistudy",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "vertaistudy.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1073320994553",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:1073320994553:web:f92b082a5de6ba684b6428",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-T1GV4DKJJ6",
 };
 
 const app = initializeApp(firebaseConfig);
