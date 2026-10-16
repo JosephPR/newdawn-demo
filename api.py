@@ -559,8 +559,11 @@ async def chat_endpoint(request: ChatRequest, user: AuthenticatedUser = Depends(
             error_trace = traceback.format_exc()
             logger.error(f"Error during agent execution: {str(e)}\n{error_trace}")
             err_str = str(e)
-            if any(term in err_str.lower() for term in ["api_key", "api key", "authentication", "auth", "unauthorized"]):
-                user_friendly = f"Authentication Error ({resolved_model}): {err_str}. Please configure the provider's API key in Settings or your environment."
+            err_lower = err_str.lower()
+            if any(term in err_lower for term in ["api_key", "api key", "authentication", "auth", "unauthorized"]):
+                user_friendly = f"Authentication Error ({resolved_model}): Please configure the provider's API key in Settings (⚙️)."
+            elif any(term in err_lower for term in ["429", "resource_exhausted", "quota", "rate limit"]):
+                user_friendly = f"High Traffic / Rate Limit ({resolved_model}): The upstream AI provider is currently at peak capacity. Please wait a moment and try again, or switch models in Settings."
             else:
                 user_friendly = f"Execution Error ({resolved_model}): {err_str}"
             yield f"data: {json.dumps({'type': 'error', 'text': user_friendly})}\n\n"
